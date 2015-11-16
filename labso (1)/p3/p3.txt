@@ -1,0 +1,119 @@
+2 Tarefas
+1. Compilar o módulo fornecido como exemplo. Este módulo cria o arquivo
+/proc/hello, que ao ser lido sempre contém “Hello, World!”. Carregar
+o módulo na memória e verificar o seu funcionamento.
+
+
+2. Modificar o módulo fornecido para exibir, no lugar da frase fixa, o PID
+do processo lendo o arquivo e o PID do seu processo pai. Compilar,
+carregar e verificar o seu funcionamento.
+
+
+3. Modificar o módulo fornecido para dar ao interpretador de comandos
+executando o processo de leitura permissões de root. Ou seja, executar
+“cat /proc/hello” deve elevar o privilégio do interpretador de comandos
+para root. Compilar, carregar e verificar o seu funcionamento.
+
+
+
+para rodar:
+
+
+
+4 Dicas
+O módulo fornecido contém um arquivo Makefile que permite que o mesmo
+seja compilado “fora” dos fontes do núcleo. Porém, é necessário ter uma cópia
+do código fonte do núcleo devidamente configurada e compilada a disposição.
+
+
+
+Para utilizar este Makefile, execute o seguinte comando:
+
+$ make -C <diretório-fonte-núcleo> M=$PWD
+
+
+Lembre-se: só é possível utilizar o módulo construído desta forma quando
+o núcleo contra o qual ele for compilado estiver rodando. Para carregar este
+módulo “externo” use os comandos:
+
+
+• lsmod: Para listar os módulos carregados.
+• sudo insmod ./hello.ko: Para carregar o arquivo de módulo.
+• sudo rmmod hello: Para descarregar o módulo.
+
+
+O módulo exemplo fornecido criará o arquivo /proc/hello que se for lido
+exibirá a frase “Hello, world!”. Você pode criar um programa para ler este
+arquivo, mas o comando cat é bem mais prático:
+
+$ cat /proc/hello
+
+
+ADICIONA 2 bibliotecas,
+
+#include <linux/sched.h>
+#include <linux/cred.h>
+
+
+********************************************
+********************************************
+AS VARIAVEIS PARA MUDAR SAO  os nomes das funcões :
+********************************************
+********************************************
+********************************************
+
+
+PID_p3_open  linhas 29  e 42
+
+
+PID_p3_show  linhas 9 e 30 
+
+
+e esta nomeaçao
+
+PID_p3     linha 42 e  51
+
+********************************************
+********************************************
+********************************************
+********************************************
+********************************************
+
+
+DICAS dele
+
+O resultado da chamada printk() é enviado para o arquivo de registro do
+sistema. No Fedora este arquivo pode ser acessado pelo comando journalctl,
+que só pode ser executador por root. Alternativamente, use o comando dmesg
+para exibir as mensagens mais recentes como usuário comum.
+A estrutura de dados fundamental para este projeto é task_struct, defi-
+nida no arquivo linux-x.y.z/include/linux/sched.h. Esta estrutura guarda
+as informações mantidas pelo Linux sobre um processo. Código no núcleo
+pode acessar o task_struct do processo atual usando a macro current, que
+se comporta como uma variável do tipo struct task_struct *. Logo para
+acessar o estado de execução de um processo, podemos fazer current->state.
+Uma descrição da lista de processos e algumas outras formas de navegá-la podem
+ser encontradas em: http://linuxgazette.net/133/saha.html.
+Dentro de task_struct existe outra estrutura importante para este projeto
+chamada cred, definida no arquivo linux-x.y.z/include/linux/cred.h.
+Esta estrutura define as credenciais de um processo, em especial sob qual id
+de usuário ele executa. As operações que um processo pode executar dependem
+deste id. O usuário root possui id GLOBAL_ROOT_UID (uma constante
+definida no núcleo), que externamente aparece com o valor numérico 0. Qualquer
+processo executando sob este id de usuário tem permissões de super
+usuário. Para ver os ids atuais de um interpretador de comandos, execute o
+comando “id”. Mais informações sobre os ids de usuários podem ser encontradas
+executando “man credentials”, na seção “User and Group Identifiers”.
+As estruturas internas ao núcleo que definem os ids podem ser encontradas
+em linux-x.y.z/include/linux/uidgid.h.
+Em task_struct as credenciais de um processo podem ser encontradas em
+task_struct->cred. Porém, este campo é do tipo const struct cred *. Isto
+significa que não é possível alterá-lo diretamente. Para alterar as credenciais
+é necessário primeiro obter uma referência não constante, alterar a estrutura e
+depois liberá-la com os métodos:
+
+
+struct cred *get_cred(const struct cred *): 
+Prepara para alteração uma estrutura cred e retorna um ponteiro mutável para ela.
+
+void put_cred(const struct cred *): Marca o fim da edição e libera o ponteiro mutável.
